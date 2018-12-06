@@ -1,0 +1,4 @@
+__pycache__/
+ispelunk_server
+*.pyc
+*.o
