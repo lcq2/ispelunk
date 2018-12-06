@@ -1,14 +1,8 @@
 import socket
 import struct
+import io
 
 class ISpelunkClient:
-    ItemsPerLine = {
-        'b': 16,
-        'w': 16,
-        'd': 8,
-        'q': 4,
-        'p': 4
-    }
     def __init__(self, host = "localhost", port = 31337):
         self._host = host
         self._port = port
@@ -27,17 +21,38 @@ class ISpelunkClient:
     def close(self):
         self._sock.close()
 
-    @staticmethod
-    def hexDump(data, offset, fmt):
-        dataview = memoryview(data)
+    def hexDump(self, data, address, fmt):
+        FormatData = {
+            'b': (16, 'B', '%02x', 1),
+            'w': (16, '<H', '%04x', 2),
+            'd': (8, '<I', '%08x', 4),
+            'q': (4, '<Q', '%016x', 8)
+        }
+        dataview = io.BytesIO(data)
         datalen = len(data)
-        for i in range(0, datalen, 16):
-            hexData = ' '.join(["%02x" % b for b in dataview[i:(i+16)]])
+        while dataview.tell() != datalen:
+            toget = FormatData[fmt][0]
+            line = "%016x: " % address
+            address += toget*FormatData[fmt][3]
+            dump = list()
+            for i in range(toget):
+                x = dataview.read(FormatData[fmt][3])
+                if len(x) > 0:
+                    x = struct.unpack(FormatData[fmt][1], x)
+                    dump.append(FormatData[fmt][2] % x)
+            if len(dump) > 0:
+                line += ' '.join(dump)
+            print(line)
 
     def readMemory(self, address, length):
         msg = struct.pack("<BQI", ord('r'), address, length)
         self._sock.sendall(msg)
-        
+        stream = io.BytesIO()
+        bytesWritten = 0
+        while bytesWritten < length:
+            bytesWritten += stream.write(self._sock.recv(4096))
+        return stream.getvalue()
+
     @property
     def port(self):
         return self._port
