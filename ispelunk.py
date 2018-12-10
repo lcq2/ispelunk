@@ -53,6 +53,11 @@ class ISpelunkClient:
             bytesWritten += stream.write(self._sock.recv(4096))
         return stream.getvalue()
 
+    def writeMemory(self, address, data):
+        length = len(data)
+        msg = struct.pack("<BQI%ds" % length, ord('w'), address, length, data)
+        self._sock.sendall(msg)
+
     @property
     def port(self):
         return self._port
